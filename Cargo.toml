@@ -1,0 +1,11 @@
+[package]
+name = "desktop-sprite"
+version = "0.1.0"
+authors = ["Alexander Hill <CodeBreadpudding@gmail.com>"]
+edition = "2018"
+license = "Apache-2.0"
+
+[dependencies]
+mlua = "0.2.2"
+png = "0.16.0"
+sdl2 = "0.33.0"
