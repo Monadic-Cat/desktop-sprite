@@ -19,12 +19,12 @@ extern crate sdl2;
 use mlua::prelude::*;
 use mlua::{Function, StdLib};
 
-use png::Decoder;
+use png::{ColorType, Decoder};
 
 use sdl2::VideoSubsystem;
-use sdl2::pixels::PixelFormatEnum;
-use sdl2::render::{Canvas, Texture, TextureAccess, TextureCreator};
-use sdl2::video::{Window, WindowContext, WindowPos};
+use sdl2::pixels::{Color, PixelFormatEnum};
+use sdl2::render::{Canvas, Texture, TextureAccess};
+use sdl2::video::{Window, WindowPos};
 
 use std::fs;
 use std::fs::File;
@@ -40,10 +40,12 @@ struct Sprite<'a> {
 
 impl Sprite<'_> {
 	pub fn new(video: &VideoSubsystem, path: String) -> Result<Self, Box<dyn std::error::Error>> {
-		let window = video.window("Desktop Sprite", 1, 1)
+		let mut window = video.window("Desktop Sprite", 1, 1)
 			.borderless()
 			.build()?;
+		window.set_opacity(0.0)?;
 		let mut canvas = window.into_canvas().build()?;
+		canvas.set_draw_color(Color::RGBA(0, 0, 0, 0));
 		let state = Lua::new_with(StdLib::MATH | StdLib::TABLE | StdLib::STRING);
 		state.load(&fs::read_to_string(path)?).exec()?;
 		let texture_creator = Box::leak(Box::new(canvas.texture_creator())); // TODO: fix stupid
@@ -56,10 +58,14 @@ impl Sprite<'_> {
 			for path in list {
 				let decoder = Decoder::new(File::open(path)?);
 				let (info, mut reader) = decoder.read_info()?;
-				let mut buffer = Vec::with_capacity(info.buffer_size());
+				let mut buffer = vec![0; info.buffer_size()];
 				reader.next_frame(&mut buffer)?;
 				let mut texture = texture_creator.create_texture(
-					Some(PixelFormatEnum::RGBA8888),
+					Some(match info.color_type {
+						ColorType::RGB => PixelFormatEnum::RGB888,
+						ColorType::RGBA => PixelFormatEnum::ARGB8888,
+						_ => PixelFormatEnum::Unknown
+					}),
 					TextureAccess::Static,
 					info.width,
 					info.height
@@ -83,7 +89,9 @@ impl Sprite<'_> {
 		let bounds = subsystem.display_bounds(window.display_index()?)?;
 		let (texture, x, y) = tick.call::<_, (usize, i32, i32)>((bounds.width(), bounds.height()))?;
 		window.set_position(WindowPos::Positioned(x), WindowPos::Positioned(y));
-		// ...
+		self.canvas.clear();
+		self.canvas.copy(&self.textures[texture], None, None)?;
+		self.canvas.present();
 		Ok(())
 	}
 }
