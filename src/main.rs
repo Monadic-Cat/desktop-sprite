@@ -35,7 +35,6 @@ use std::time::Duration;
 struct Sprite<'a> {
 	canvas: Canvas<Window>,
 	state: Lua,
-	texture_creator: TextureCreator<WindowContext>,
 	textures: Vec<Texture<'a>>
 }
 
@@ -47,7 +46,7 @@ impl Sprite<'_> {
 		let mut canvas = window.into_canvas().build()?;
 		let state = Lua::new_with(StdLib::MATH | StdLib::TABLE | StdLib::STRING);
 		state.load(&fs::read_to_string(path)?).exec()?;
-		let texture_creator = canvas.texture_creator();
+		let texture_creator = Box::leak(Box::new(canvas.texture_creator())); // TODO: fix stupid
 		let mut textures = Vec::new();
 		{
 			let globals = state.globals();
@@ -72,7 +71,6 @@ impl Sprite<'_> {
 		Ok(Sprite {
 			canvas,
 			state,
-			texture_creator,
 			textures
 		})
 	}
